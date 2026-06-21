@@ -82,7 +82,7 @@ export default function HUD({
   
   const timelineRounds = useMemo(() => {
     if (!snapshot) return [];
-    return [snapshot.round, ...snapshot.rounds].filter(Boolean) as any[];
+    return [snapshot.round, ...(snapshot.rounds || [])].filter(Boolean) as any[];
   }, [snapshot]);
 
   const handleBid = (e: React.FormEvent) => {
