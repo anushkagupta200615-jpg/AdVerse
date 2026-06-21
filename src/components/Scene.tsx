@@ -1,10 +1,10 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { Environment, useTexture } from "@react-three/drei";
+import { Sky, useTexture } from "@react-three/drei";
 import { Suspense, useMemo, useState, useEffect } from "react";
 import * as THREE from "three";
-import Car from "./Car";
+import Car, { DrivingTelemetry } from "./Car";
 import { getRoadFrame, roadLength, roadWidth } from "../utils/roadCurve";
 
 const BILLBOARD_DISTANCE = 300;
@@ -77,7 +77,16 @@ function Road() {
 
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial color="#222" roughness={0.9} />
+      <meshStandardMaterial color="#3a3a40" roughness={0.9} />
+    </mesh>
+  );
+}
+
+function Ground() {
+  return (
+    <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[10000, 10000]} />
+      <meshBasicMaterial color="#537247" />
     </mesh>
   );
 }
@@ -85,11 +94,13 @@ function Road() {
 export default function Scene({ 
   currentAdUrl, 
   isBidding, 
-  setIsBidding 
+  setIsBidding,
+  onTelemetry
 }: { 
   currentAdUrl: string | null, 
   isBidding: boolean,
-  setIsBidding: (val: boolean) => void 
+  setIsBidding: (val: boolean) => void,
+  onTelemetry: (telemetry: DrivingTelemetry) => void
 }) {
   const [canBid, setCanBid] = useState(false);
 
@@ -105,33 +116,52 @@ export default function Scene({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [canBid, isBidding, setIsBidding]);
 
+  useEffect(() => {
+    // Show/hide the prompt from page.tsx directly to avoid react re-renders on the whole app
+    const el = document.getElementById('interaction-prompt');
+    if (el) {
+      el.style.opacity = (canBid && !isBidding) ? '1' : '0';
+    }
+  }, [canBid, isBidding]);
+
   return (
     <div className="absolute inset-0 z-0">
-      <Canvas camera={{ position: [0, 5, 10], fov: 60 }}>
+      <Canvas 
+        camera={{ position: [0, 5, 10], fov: 58 }}
+        dpr={[0.85, 1.15]} 
+        gl={{ antialias: false, powerPreference: 'high-performance' }}
+      >
+        <color attach="background" args={['#a8c9d8']} />
+        <fog attach="fog" args={['#a8c9d8', 130, 690]} />
+
+        <Sky
+          sunPosition={[80, 32, -90]}
+          turbidity={1.4}
+          rayleigh={1.8}
+          mieCoefficient={0.006}
+          mieDirectionalG={0.72}
+        />
+
+        <ambientLight intensity={0.78} />
+        <hemisphereLight args={['#d8f0ff', '#537247', 1.2]} />
+        <directionalLight 
+          position={[70, 100, -80]} 
+          intensity={2.15}
+        />
+        
+        <Ground />
+        <Road />
+        <Billboard textureUrl={currentAdUrl} />
+        
         <Suspense fallback={null}>
-          <Environment preset="night" background blur={0.5} />
-          <ambientLight intensity={0.5} />
-          <directionalLight position={[10, 20, 10]} intensity={1.5} />
-          
-          <Road />
-          <Billboard textureUrl={currentAdUrl} />
-          
           <Car 
             playing={!isBidding} 
             billboardDistance={BILLBOARD_DISTANCE}
             onNearBillboard={setCanBid}
+            onTelemetry={onTelemetry}
           />
         </Suspense>
       </Canvas>
-
-      {/* Interaction Prompt */}
-      {!isBidding && canBid && (
-        <div className="pointer-events-none absolute bottom-10 w-full flex justify-center z-10">
-          <div className="bg-black/80 text-white px-6 py-3 rounded-full backdrop-blur-md border border-white/20 animate-pulse text-lg font-bold shadow-2xl">
-            Press <kbd className="bg-blue-600 px-3 py-1 rounded mx-1 text-white">SPACE</kbd> to Bid on Billboard
-          </div>
-        </div>
-      )}
     </div>
   );
 }
