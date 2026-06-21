@@ -1,11 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { DrivingTelemetry } from './Car'
 import { SceneId } from './Scene'
 import { CarId, carOptions } from '../data/cars'
+import { Bid, SurfaceSnapshot } from '@/lib/arcade-sdk'
 import { DriveInputKey, setDriveInput, telemetryState, subscribeTelemetry } from '../utils/input'
 
 interface HUDProps {
   currentAdUrl: string | null
+  bids?: Bid[]
+  bidHistory?: Bid[]
+  activeWinner?: Bid | null
+  snapshot?: SurfaceSnapshot | null
   onHide: () => void
   isBidding: boolean
   setIsBidding: (val: boolean) => void
@@ -50,6 +55,10 @@ function ControlButton({ label, inputKey }: { label: string, inputKey: DriveInpu
 
 export default function HUD({ 
   currentAdUrl, 
+  bids = [],
+  bidHistory = [],
+  activeWinner = null,
+  snapshot = null,
   onHide,
   isBidding,
   setIsBidding,
@@ -66,6 +75,15 @@ export default function HUD({
   const [prompt, setPrompt] = useState("");
   const [bidAmount, setBidAmount] = useState("");
   const [telemetry, setTelemetry] = useState(telemetryState);
+  const [now, setNow] = useState(Date.now());
+  
+  const liveLeader = bids[0];
+  const roundMsRemaining = snapshot?.round?.endsAt ? snapshot.round.endsAt - now : 0;
+  
+  const timelineRounds = useMemo(() => {
+    if (!snapshot) return [];
+    return [snapshot.round, ...snapshot.rounds].filter(Boolean) as any[];
+  }, [snapshot]);
 
   const handleBid = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,8 +91,12 @@ export default function HUD({
   };
 
   useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
     const unsubTelemetry = subscribeTelemetry(setTelemetry)
-    return () => { unsubTelemetry() }
+    return () => {
+      window.clearInterval(timer)
+      unsubTelemetry()
+    }
   }, [])
 
   return (
@@ -117,7 +139,7 @@ export default function HUD({
         </div>
         <div className="leader-strip">
           <span>live leader</span>
-          <strong>{lastPrompt ? `Local User ${money(parseFloat(lastBidAmount))}` : 'waiting for bids'}</strong>
+          <strong>{liveLeader ? `${liveLeader.bidder} ${money(liveLeader.amount)}` : 'waiting for bids'}</strong>
         </div>
       </section>
 
@@ -182,24 +204,24 @@ export default function HUD({
           </div>
           <div className="round-timer">
             <span>time left</span>
-            <strong>--:--</strong>
+            <strong>{roundMsRemaining > 0 ? `${Math.floor(roundMsRemaining / 1000)}s` : '--:--'}</strong>
           </div>
           <div className="round-stat-grid">
             <div>
               <span>current bids</span>
-              <strong>{lastPrompt ? 1 : 0}</strong>
+              <strong>{bids.length}</strong>
             </div>
             <div>
               <span>leader</span>
-              <strong>{lastPrompt ? `Local User ${money(parseFloat(lastBidAmount))}` : 'none'}</strong>
+              <strong>{liveLeader ? liveLeader.bidder : 'none'}</strong>
             </div>
             <div>
               <span>last winner</span>
-              <strong>none</strong>
+              <strong>{snapshot?.lastClosedRound?.winningBidId ? snapshot.lastClosedRound.winningBidId : 'none'}</strong>
             </div>
             <div>
               <span>last render</span>
-              <strong>pending</strong>
+              <strong>{currentAdUrl ? 'ready' : 'pending'}</strong>
             </div>
           </div>
         </section>
@@ -254,10 +276,34 @@ export default function HUD({
       <section className="hud-panel bid-panel">
         <div className="strip-head">
           <span>Bids by round</span>
-          <span>0 rounds</span>
+          <span>{timelineRounds.length} rounds</span>
         </div>
         <div className="round-list">
-          <div className="empty-row">waiting for agents</div>
+          {timelineRounds.length === 0 ? (
+            <div className="empty-row">waiting for agents</div>
+          ) : (
+            timelineRounds.map((r, i) => {
+              const rBids = r.id === snapshot?.round?.id 
+                ? bids 
+                : bidHistory.filter(b => b.roundId === r.id);
+              
+              return (
+                <div key={r.id} className="round-block">
+                  <div className="round-block-head">
+                    <span>Round {timelineRounds.length - i} {r.id === snapshot?.round?.id && '(Active)'}</span>
+                    <span>{rBids.length} bids</span>
+                  </div>
+                  {rBids.slice(0, 5).map((bid, j) => (
+                    <div key={bid.id} className={`bid-row ${j === 0 ? 'top-bid' : ''}`}>
+                      <span className="bid-rank">#{j + 1}</span>
+                      <span className="bid-agent">{bid.bidder}</span>
+                      <span className="bid-amount">{money(bid.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })
+          )}
         </div>
       </section>
     </div>

@@ -1,11 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Scene, { SceneId } from "@/components/Scene";
 import HUD from "@/components/HUD";
 import { CarId } from "@/data/cars";
+import { ArcadeSDK, Bid, SurfaceSnapshot } from "@/lib/arcade-sdk";
 
 export default function Home() {
+  const sdk = useMemo(() => new ArcadeSDK({
+    mock: true,
+    surfaceId: 'raceway-billboard-main',
+  }), []);
+
+  const [bids, setBids] = useState<Bid[]>([]);
+  const [bidHistory, setBidHistory] = useState<Bid[]>([]);
+  const [lastWinner, setLastWinner] = useState<Bid | null>(null);
+  const [surfaceSnapshot, setSurfaceSnapshot] = useState<SurfaceSnapshot | null>(null);
+  
   const [adUrl, setAdUrl] = useState<string | null>(null);
   const [isBidding, setIsBidding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -20,6 +31,23 @@ export default function Home() {
   const [lastBidAmount, setLastBidAmount] = useState("");
 
   const [hasStarted, setHasStarted] = useState(false);
+
+  useEffect(() => {
+    const unsubBids = sdk.subscribeToBids(setBids);
+    const unsubBidHistory = sdk.subscribeToBidHistory(setBidHistory);
+    const unsubLastWinner = sdk.subscribeToLastWinner(setLastWinner);
+    const unsubSnapshot = sdk.subscribeToSurfaceSnapshot(setSurfaceSnapshot);
+    const unsubTexture = sdk.subscribeToTextureUpdates(setAdUrl);
+
+    return () => {
+      unsubBids();
+      unsubBidHistory();
+      unsubLastWinner();
+      unsubSnapshot();
+      unsubTexture();
+      sdk.stop();
+    };
+  }, [sdk]);
 
   useEffect(() => {
     if (hasStarted) return;
@@ -45,6 +73,12 @@ export default function Home() {
       const data = await response.json();
       
       if (data.success) {
+        // Feed local bid into the SDK mock feed
+        await sdk.submitBid({
+          bidder: "Local User",
+          amount: parseFloat(bidAmount),
+          prompt: prompt,
+        });
         setAdUrl(data.imageUrl);
         setLastPrompt(prompt);
         setLastBidAmount(bidAmount);
@@ -68,21 +102,25 @@ export default function Home() {
         setIsBidding={setIsBidding} 
         activeScene={activeScene}
         activeCar={activeCar}
-        lastPrompt={lastPrompt}
-        lastBidAmount={lastBidAmount}
+        lastPrompt={lastWinner?.prompt ?? lastPrompt}
+        lastBidAmount={lastWinner?.amount.toString() ?? lastBidAmount}
       />
 
       {/* Arcade UI Overlay */}
       {hudVisible ? (
         <HUD 
           currentAdUrl={adUrl}
+          bids={bids}
+          bidHistory={bidHistory}
+          activeWinner={lastWinner}
+          snapshot={surfaceSnapshot}
           onHide={() => setHudVisible(false)}
           isBidding={isBidding}
           setIsBidding={setIsBidding}
           onBidSubmit={handleBidSubmit}
           isSubmitting={isSubmitting}
-          lastPrompt={lastPrompt}
-          lastBidAmount={lastBidAmount}
+          lastPrompt={lastWinner?.prompt ?? lastPrompt}
+          lastBidAmount={lastWinner?.amount.toString() ?? lastBidAmount}
           activeScene={activeScene}
           activeCar={activeCar}
           onSceneChange={setActiveScene}
