@@ -1,5 +1,7 @@
 # AdVerse
 
+🚀 **Live Demo:** [https://adverse-murex.vercel.app](https://adverse-murex.vercel.app)
+
 **AdVerse** is a dynamic, real-time auction platform for digital billboards in 3D virtual environments. 
 
 ## 🚀 The Problem We're Solving
