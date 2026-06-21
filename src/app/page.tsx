@@ -3,15 +3,12 @@
 import { useState, useEffect } from "react";
 import Scene, { SceneId } from "@/components/Scene";
 import HUD from "@/components/HUD";
-import { DrivingTelemetry } from "@/components/Car";
 import { CarId } from "@/data/cars";
 
 export default function Home() {
   const [adUrl, setAdUrl] = useState<string | null>(null);
   const [isBidding, setIsBidding] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const [telemetry, setTelemetry] = useState<DrivingTelemetry>({ speed: 0, steering: 0 });
   const [hudVisible, setHudVisible] = useState(true);
 
   // Global Interactive States
@@ -69,7 +66,6 @@ export default function Home() {
         currentAdUrl={adUrl} 
         isBidding={isBidding || !hasStarted} 
         setIsBidding={setIsBidding} 
-        onTelemetry={setTelemetry}
         activeScene={activeScene}
         activeCar={activeCar}
         lastPrompt={lastPrompt}
@@ -80,7 +76,6 @@ export default function Home() {
       {hudVisible ? (
         <HUD 
           currentAdUrl={adUrl}
-          telemetry={telemetry}
           onHide={() => setHudVisible(false)}
           isBidding={isBidding}
           setIsBidding={setIsBidding}

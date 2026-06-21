@@ -1,12 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DrivingTelemetry } from './Car'
 import { SceneId } from './Scene'
 import { CarId, carOptions } from '../data/cars'
-import { DriveInputKey, setDriveInput } from '../utils/input'
+import { DriveInputKey, setDriveInput, telemetryState, subscribeTelemetry } from '../utils/input'
 
 interface HUDProps {
   currentAdUrl: string | null
-  telemetry: DrivingTelemetry
   onHide: () => void
   isBidding: boolean
   setIsBidding: (val: boolean) => void
@@ -26,12 +25,22 @@ function money(value?: number) {
 
 function ControlButton({ label, inputKey }: { label: string, inputKey: DriveInputKey }) {
   return (
-    <button 
-      className="control-button" 
-      onPointerDown={() => setDriveInput(inputKey, true)}
-      onPointerUp={() => setDriveInput(inputKey, false)}
-      onPointerCancel={() => setDriveInput(inputKey, false)}
-      onPointerLeave={() => setDriveInput(inputKey, false)}
+    <button
+      className="control-button"
+      onPointerDown={(e) => {
+        (e.target as HTMLElement).setPointerCapture(e.pointerId)
+        setDriveInput(inputKey, true)
+      }}
+      onPointerUp={(e) => {
+        try { (e.target as HTMLElement).releasePointerCapture(e.pointerId) } catch (e) {}
+        setDriveInput(inputKey, false)
+      }}
+      onPointerCancel={(e) => {
+        try { (e.target as HTMLElement).releasePointerCapture(e.pointerId) } catch (e) {}
+        setDriveInput(inputKey, false)
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+      style={{ touchAction: 'none', userSelect: 'none' }}
       type="button"
     >
       {label}
@@ -41,7 +50,6 @@ function ControlButton({ label, inputKey }: { label: string, inputKey: DriveInpu
 
 export default function HUD({ 
   currentAdUrl, 
-  telemetry, 
   onHide,
   isBidding,
   setIsBidding,
@@ -57,11 +65,17 @@ export default function HUD({
 
   const [prompt, setPrompt] = useState("");
   const [bidAmount, setBidAmount] = useState("");
+  const [telemetry, setTelemetry] = useState(telemetryState);
 
   const handleBid = (e: React.FormEvent) => {
     e.preventDefault();
     onBidSubmit(prompt, bidAmount);
   };
+
+  useEffect(() => {
+    const unsubTelemetry = subscribeTelemetry(setTelemetry)
+    return () => unsubTelemetry()
+  }, [])
 
   return (
     <div className="hud">

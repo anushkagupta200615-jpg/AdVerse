@@ -5,7 +5,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getRoadFrame, roadWidth, wrapDistance } from '../utils/roadCurve'
 import { CarId, getCarOption } from '../data/cars'
-import { driveInput, setDriveInput } from '../utils/input'
+import { driveInput, setDriveInput, setTelemetryState } from '../utils/input'
 
 export interface DrivingTelemetry {
   speed: number
@@ -14,7 +14,6 @@ export interface DrivingTelemetry {
 
 interface CarProps {
   playing: boolean
-  onTelemetry?: (telemetry: DrivingTelemetry) => void
   onNearBillboard?: (isNear: boolean) => void
   carId: CarId
 }
@@ -30,7 +29,7 @@ const keyMap: Record<string, keyof typeof driveInput> = {
   ArrowRight: 'steerRight',
 }
 
-export default function Car({ playing, onTelemetry, onNearBillboard, carId }: CarProps) {
+export default function Car({ playing, onNearBillboard, carId }: CarProps) {
   const option = getCarOption(carId)
   
   const group = useRef<THREE.Group>(null)
@@ -152,7 +151,7 @@ export default function Car({ playing, onTelemetry, onNearBillboard, carId }: Ca
     telemetryClock.current += dt
     if (telemetryClock.current > 0.12) {
       telemetryClock.current = 0
-      onTelemetry?.({ speed: speed.current, steering: steering.current })
+      setTelemetryState({ speed: speed.current, steering: steering.current })
     }
 
     state.camera.updateProjectionMatrix()

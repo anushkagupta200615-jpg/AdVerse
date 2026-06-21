@@ -2,9 +2,9 @@
 
 import { Canvas } from "@react-three/fiber";
 import { Sky } from "@react-three/drei";
-import { Suspense, useState, useEffect } from "react";
+import React, { Suspense, useState, useEffect } from "react";
 import * as THREE from "three";
-import Car, { DrivingTelemetry } from "./Car";
+import Car from "./Car";
 import { CarId } from "../data/cars";
 import RoadAndEnvironment, { SceneId } from "./RoadAndEnvironment";
 
@@ -29,11 +29,10 @@ const atmosphere: Record<SceneId, {
   dusk: { background: '#d2a184', fog: '#d2a184', sun: [-70, 18, -90], turbidity: 1.8, rayleigh: 2.5, hemiSky: '#ffd5b3', hemiGround: '#46533c', ambient: 0.72 },
 }
 
-export default function Scene({ 
+export default React.memo(function Scene({ 
   currentAdUrl, 
   isBidding, 
   setIsBidding,
-  onTelemetry,
   activeScene,
   activeCar,
   lastPrompt,
@@ -42,7 +41,6 @@ export default function Scene({
   currentAdUrl: string | null, 
   isBidding: boolean,
   setIsBidding: (val: boolean) => void,
-  onTelemetry: (telemetry: DrivingTelemetry) => void,
   activeScene: SceneId,
   activeCar: CarId,
   lastPrompt?: string,
@@ -106,11 +104,10 @@ export default function Scene({
           <Car 
             playing={!isBidding} 
             onNearBillboard={setCanBid}
-            onTelemetry={onTelemetry}
             carId={activeCar}
           />
         </Suspense>
       </Canvas>
     </div>
   );
-}
+})
