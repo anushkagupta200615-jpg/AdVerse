@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { DrivingTelemetry } from './Car'
+import { SceneId } from './Scene'
+import { CarId, carOptions } from '../data/cars'
 
 interface HUDProps {
   currentAdUrl: string | null
@@ -11,13 +13,17 @@ interface HUDProps {
   isSubmitting: boolean
   lastPrompt: string
   lastBidAmount: string
+  activeScene: SceneId
+  activeCar: CarId
+  onSceneChange: (scene: SceneId) => void
+  onCarChange: (car: CarId) => void
 }
 
 function money(value?: number) {
   return `$${Number(value ?? 0).toFixed(3)}`
 }
 
-function ControlButton({ label, inputKey }: { label: string, inputKey: string }) {
+function ControlButton({ label }: { label: string }) {
   // In the original, this dispatched events. For visual parity we just render the button.
   return (
     <button className="control-button" type="button">
@@ -35,7 +41,11 @@ export default function HUD({
   onBidSubmit,
   isSubmitting,
   lastPrompt,
-  lastBidAmount
+  lastBidAmount,
+  activeScene,
+  activeCar,
+  onSceneChange,
+  onCarChange
 }: HUDProps) {
 
   const [prompt, setPrompt] = useState("");
@@ -180,25 +190,26 @@ export default function HUD({
           <strong>WASD / arrows</strong>
         </div>
         <div className="control-grid" aria-label="Driving controls">
-          <ControlButton label="W" inputKey="accelerate" />
+          <ControlButton label="W" />
           <div className="steer-pair">
-            <ControlButton label="A" inputKey="steerLeft" />
-            <ControlButton label="D" inputKey="steerRight" />
+            <ControlButton label="A" />
+            <ControlButton label="D" />
           </div>
-          <ControlButton label="S" inputKey="brake" />
+          <ControlButton label="S" />
         </div>
       </section>
 
       <section className="hud-panel scene-panel">
         <div className="scene-head">
           <span>scene</span>
-          <strong>meadow</strong>
+          <strong>{activeScene}</strong>
         </div>
         <div className="scene-tabs" aria-label="Scene">
-          {['meadow', 'alpine', 'snow', 'autumn', 'coast', 'desert', 'dusk'].map((option) => (
+          {(['meadow', 'alpine', 'snow', 'autumn', 'coast', 'desert', 'dusk'] as SceneId[]).map((option) => (
             <button
               key={option}
-              className={option === 'meadow' ? 'scene-tab active' : 'scene-tab'}
+              className={option === activeScene ? 'scene-tab active' : 'scene-tab'}
+              onClick={() => onSceneChange(option)}
               type="button"
             >
               {option}
@@ -206,8 +217,16 @@ export default function HUD({
           ))}
         </div>
         <div className="car-tabs" aria-label="Car">
-          <button className={'car-tab active'} type="button">SEDAN</button>
-          <button className={'car-tab'} type="button">SUV</button>
+          {carOptions.map((option) => (
+            <button
+              key={option.id}
+              className={option.id === activeCar ? 'car-tab active' : 'car-tab'}
+              onClick={() => onCarChange(option.id)}
+              type="button"
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
       </section>
 

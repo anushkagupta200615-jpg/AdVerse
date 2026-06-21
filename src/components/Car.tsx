@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { getRoadFrame, roadWidth, wrapDistance } from '../utils/roadCurve'
+import { CarId, getCarOption } from '../data/cars'
 
 export interface DrivingTelemetry {
   speed: number
@@ -15,6 +16,7 @@ interface CarProps {
   onTelemetry?: (telemetry: DrivingTelemetry) => void
   onNearBillboard?: (isNear: boolean) => void
   billboardDistance: number
+  carId: CarId
 }
 
 const driveInput = {
@@ -35,16 +37,9 @@ const keyMap: Record<string, keyof typeof driveInput> = {
   ArrowRight: 'steerRight',
 }
 
-const option = {
-  acceleration: 20,
-  braking: 40,
-  cruiseSpeed: 30,
-  maxSpeed: 80,
-  handling: 1,
-  cameraLift: 0
-}
-
-export default function Car({ playing, onTelemetry, onNearBillboard, billboardDistance }: CarProps) {
+export default function Car({ playing, onTelemetry, onNearBillboard, billboardDistance, carId }: CarProps) {
+  const option = getCarOption(carId)
+  
   const group = useRef<THREE.Group>(null)
   const distance = useRef(0)
   const speed = useRef(0)
@@ -170,16 +165,16 @@ export default function Car({ playing, onTelemetry, onNearBillboard, billboardDi
       </mesh>
       
       {/* Boxy Placeholder Car */}
-      <group position={[0, 0.62, 0]}>
+      <group position={[0, carId === 'suv' ? 0.75 : 0.62, 0]}>
         {/* Main Body */}
         <mesh position={[0, 0.2, 0]}>
-          <boxGeometry args={[1.8, 0.6, 4]} />
-          <meshStandardMaterial color="#2255ff" roughness={0.3} metalness={0.6} />
+          <boxGeometry args={carId === 'suv' ? [1.9, 0.8, 4.2] : [1.8, 0.6, 4]} />
+          <meshStandardMaterial color={option.paint} roughness={0.3} metalness={0.6} />
         </mesh>
         {/* Cabin */}
         <mesh position={[0, 0.8, -0.2]}>
-          <boxGeometry args={[1.4, 0.5, 2]} />
-          <meshStandardMaterial color="#111" roughness={0.1} />
+          <boxGeometry args={carId === 'suv' ? [1.5, 0.6, 2.2] : [1.4, 0.5, 2]} />
+          <meshStandardMaterial color={option.glass} roughness={0.1} />
         </mesh>
         {/* Wheels */}
         <mesh position={[-1, 0, -1.2]} rotation={[0, 0, Math.PI / 2]}>

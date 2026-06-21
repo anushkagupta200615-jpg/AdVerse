@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Scene from "@/components/Scene";
+import Scene, { SceneId } from "@/components/Scene";
 import HUD from "@/components/HUD";
 import { DrivingTelemetry } from "@/components/Car";
+import { CarId } from "@/data/cars";
 
 export default function Home() {
   const [adUrl, setAdUrl] = useState<string | null>(null);
@@ -12,6 +13,10 @@ export default function Home() {
   
   const [telemetry, setTelemetry] = useState<DrivingTelemetry>({ speed: 0, steering: 0 });
   const [hudVisible, setHudVisible] = useState(true);
+
+  // Global Interactive States
+  const [activeScene, setActiveScene] = useState<SceneId>('meadow');
+  const [activeCar, setActiveCar] = useState<CarId>('sedan');
 
   // Stats for HUD display
   const [lastPrompt, setLastPrompt] = useState("");
@@ -52,6 +57,8 @@ export default function Home() {
         isBidding={isBidding} 
         setIsBidding={setIsBidding} 
         onTelemetry={setTelemetry}
+        activeScene={activeScene}
+        activeCar={activeCar}
       />
 
       {/* Arcade UI Overlay */}
@@ -66,6 +73,10 @@ export default function Home() {
           isSubmitting={isSubmitting}
           lastPrompt={lastPrompt}
           lastBidAmount={lastBidAmount}
+          activeScene={activeScene}
+          activeCar={activeCar}
+          onSceneChange={setActiveScene}
+          onCarChange={setActiveCar}
         />
       ) : (
         <button 
