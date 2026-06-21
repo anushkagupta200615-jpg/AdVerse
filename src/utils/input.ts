@@ -26,5 +26,5 @@ export function setTelemetryState(t: typeof telemetryState) {
 
 export function subscribeTelemetry(listener: (t: typeof telemetryState) => void) {
   listeners.add(listener)
-  return () => listeners.delete(listener)
+  return () => { listeners.delete(listener) }
 }

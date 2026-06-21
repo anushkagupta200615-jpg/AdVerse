@@ -74,7 +74,7 @@ export default function HUD({
 
   useEffect(() => {
     const unsubTelemetry = subscribeTelemetry(setTelemetry)
-    return () => unsubTelemetry()
+    return () => { unsubTelemetry() }
   }, [])
 
   return (
