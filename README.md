@@ -8,6 +8,25 @@ In traditional gaming and virtual environments, advertisements are static, hard-
 
 **AdVerse** solves this by turning any 3D surface into a live auction house. Brands and users can submit bids accompanied by AI-generation prompts. The highest bidder wins the slot, and their prompt is instantly converted into a high-quality ad via an AI image generator, which is then streamed directly onto the in-game billboard in real time.
 
+## 💸 Sub-cent Economics & x402 Payments
+
+**Tiny payments for agent actions**
+Each bid endpoint can issue an x402 payment requirement. The buyer agent signs a Circle Gateway authorization, retries the request, and arcAd(e) records the receipt before accepting the bid.
+
+A bid can cost fractions of a cent without turning into a settlement problem.
+
+- **Agent-native flow:** No checkout UI: the agent receives a challenge, signs, and continues.
+- **Auditable receipts:** Every paid action can carry payer, amount, network, asset, and verification data.
+
+### x402 Authorization Details
+| Field | Value |
+|-------|-------|
+| **NETWORK** | `eip155:5042002` |
+| **ASSET** | Arc Testnet USDC |
+| **ACTION** | bid / increase |
+| **PAYER** | agent wallet |
+| **VERIFICATION** | `isValid: true` |
+
 ## 🛠 Tech Stack
 
 - **Frontend:** Next.js 14, React, Tailwind CSS
