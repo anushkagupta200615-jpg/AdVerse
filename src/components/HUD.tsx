@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { DrivingTelemetry } from './Car'
 import { SceneId } from './Scene'
 import { CarId, carOptions } from '../data/cars'
+import { DriveInputKey, setDriveInput } from '../utils/input'
 
 interface HUDProps {
   currentAdUrl: string | null
@@ -23,10 +24,16 @@ function money(value?: number) {
   return `$${Number(value ?? 0).toFixed(3)}`
 }
 
-function ControlButton({ label }: { label: string }) {
-  // In the original, this dispatched events. For visual parity we just render the button.
+function ControlButton({ label, inputKey }: { label: string, inputKey: DriveInputKey }) {
   return (
-    <button className="control-button" type="button">
+    <button 
+      className="control-button" 
+      onPointerDown={() => setDriveInput(inputKey, true)}
+      onPointerUp={() => setDriveInput(inputKey, false)}
+      onPointerCancel={() => setDriveInput(inputKey, false)}
+      onPointerLeave={() => setDriveInput(inputKey, false)}
+      type="button"
+    >
       {label}
     </button>
   )
@@ -190,12 +197,12 @@ export default function HUD({
           <strong>WASD / arrows</strong>
         </div>
         <div className="control-grid" aria-label="Driving controls">
-          <ControlButton label="W" />
+          <ControlButton label="W" inputKey="accelerate" />
           <div className="steer-pair">
-            <ControlButton label="A" />
-            <ControlButton label="D" />
+            <ControlButton label="A" inputKey="steerLeft" />
+            <ControlButton label="D" inputKey="steerRight" />
           </div>
-          <ControlButton label="S" />
+          <ControlButton label="S" inputKey="brake" />
         </div>
       </section>
 

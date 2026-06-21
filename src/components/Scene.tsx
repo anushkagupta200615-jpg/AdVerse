@@ -85,21 +85,40 @@ function Billboard({ textureUrl }: { textureUrl: string | null }) {
   );
 }
 
+function createRoadGeometry(width: number, segments: number) {
+  const geometry = new THREE.BufferGeometry()
+  const vertices: number[] = []
+  const uvs: number[] = []
+  const indices: number[] = []
+
+  for (let i = 0; i <= segments; i++) {
+    const distance = (i / segments) * roadLength
+    const frame = getRoadFrame(distance)
+    const left = frame.point.clone().add(frame.right.clone().multiplyScalar(-width / 2)).add(frame.normal.clone().multiplyScalar(0.09))
+    const right = frame.point.clone().add(frame.right.clone().multiplyScalar(width / 2)).add(frame.normal.clone().multiplyScalar(0.09))
+
+    vertices.push(left.x, left.y, left.z, right.x, right.y, right.z)
+    uvs.push(0, distance / 32, 1, distance / 32)
+  }
+
+  for (let i = 0; i < segments; i++) {
+    const a = i * 2
+    indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
+  }
+
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+  geometry.setIndex(indices)
+  geometry.computeVertexNormals()
+  return geometry
+}
+
 function Road() {
-  const geometry = useMemo(() => {
-    const points: THREE.Vector3[] = [];
-    const segments = Math.floor(roadLength / 5);
-    for (let i = 0; i <= segments; i++) {
-      const distance = (i / segments) * roadLength;
-      points.push(getRoadFrame(distance).point);
-    }
-    const curve = new THREE.CatmullRomCurve3(points);
-    return new THREE.TubeGeometry(curve, segments, roadWidth, 8, true);
-  }, []);
+  const geometry = useMemo(() => createRoadGeometry(roadWidth, Math.floor(roadLength / 5)), []);
 
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial color="#3a3a40" roughness={0.9} />
+      <meshStandardMaterial color="#3a3a40" roughness={0.9} side={THREE.DoubleSide} />
     </mesh>
   );
 }

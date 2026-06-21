@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { getRoadFrame, roadWidth, wrapDistance } from '../utils/roadCurve'
+import { CarId, getCarOption } from '../data/cars'
+import { driveInput, setDriveInput } from '../utils/input'
 import { CarId, getCarOption } from '../data/cars'
 
 export interface DrivingTelemetry {
@@ -17,13 +19,6 @@ interface CarProps {
   onNearBillboard?: (isNear: boolean) => void
   billboardDistance: number
   carId: CarId
-}
-
-const driveInput = {
-  accelerate: false,
-  brake: false,
-  steerLeft: false,
-  steerRight: false,
 }
 
 const keyMap: Record<string, keyof typeof driveInput> = {
@@ -55,12 +50,12 @@ export default function Car({ playing, onTelemetry, onNearBillboard, billboardDi
     const handleKeyDown = (event: KeyboardEvent) => {
       const inputKey = keyMap[event.code]
       if (!inputKey) return
-      driveInput[inputKey] = true
+      setDriveInput(inputKey, true)
     }
     const handleKeyUp = (event: KeyboardEvent) => {
       const inputKey = keyMap[event.code]
       if (!inputKey) return
-      driveInput[inputKey] = false
+      setDriveInput(inputKey, false)
     }
 
     window.addEventListener('keydown', handleKeyDown)
