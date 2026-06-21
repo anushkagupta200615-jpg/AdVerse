@@ -27,7 +27,7 @@ export default function Home() {
         setAdUrl(data.imageUrl);
         setPrompt("");
         setBidAmount("");
-        setIsBidding(false); // Close UI on success
+        setIsBidding(false); 
       } else {
         alert("Failed to place bid: " + data.error);
       }
@@ -99,11 +99,15 @@ export default function Home() {
       )}
 
       {/* Instructions Overlay (top left) */}
-      <div className="absolute top-4 left-4 z-10 pointer-events-none text-white/50 text-sm">
-        <p>W,A,S,D to move</p>
-        <p>Mouse to look</p>
-        <p>Click to start</p>
-      </div>
+      {!isBidding && (
+        <div className="absolute top-4 left-4 z-10 pointer-events-none text-white/50 text-sm">
+          <p className="font-bold mb-1">CONTROLS</p>
+          <p>W / Up: Accelerate</p>
+          <p>S / Down: Brake</p>
+          <p>A / Left: Steer Left</p>
+          <p>D / Right: Steer Right</p>
+        </div>
+      )}
     </main>
   );
 }

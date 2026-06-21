@@ -1,18 +1,20 @@
 "use client";
 
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, PointerLockControls, useTexture, KeyboardControls, useKeyboardControls } from "@react-three/drei";
-import { Physics, RigidBody, CuboidCollider } from "@react-three/rapier";
-import { Suspense, useRef, useState, useEffect } from "react";
+import { Canvas } from "@react-three/fiber";
+import { Environment, useTexture } from "@react-three/drei";
+import { Suspense, useMemo, useState, useEffect } from "react";
 import * as THREE from "three";
+import Car from "./Car";
+import { getRoadFrame, roadLength, roadWidth } from "../utils/roadCurve";
 
-// --- BILLBOARD COMPONENT ---
+const BILLBOARD_DISTANCE = 300;
+
 function BillboardScreen({ url }: { url: string }) {
   const texture = useTexture(url);
   texture.colorSpace = THREE.SRGBColorSpace;
   return (
     <mesh position={[0, 0, 0.1]}>
-      <planeGeometry args={[4, 2]} />
+      <planeGeometry args={[8, 4]} />
       <meshBasicMaterial map={texture} />
     </mesh>
   );
@@ -21,118 +23,70 @@ function BillboardScreen({ url }: { url: string }) {
 function FallbackScreen() {
   return (
     <mesh position={[0, 0, 0.1]}>
-      <planeGeometry args={[4, 2]} />
+      <planeGeometry args={[8, 4]} />
       <meshBasicMaterial color="#333" />
     </mesh>
   );
 }
 
 function Billboard({ textureUrl }: { textureUrl: string | null }) {
-  return (
-    <RigidBody type="fixed" colliders="cuboid" position={[0, 1.5, -4]}>
-      <group>
-        {/* Stand */}
-        <mesh position={[0, -1.5, 0]}>
-          <boxGeometry args={[0.2, 3, 0.2]} />
-          <meshStandardMaterial color="#333" />
-        </mesh>
-        
-        {/* Screen */}
-        <Suspense fallback={<FallbackScreen />}>
-          {textureUrl ? <BillboardScreen url={textureUrl} /> : <FallbackScreen />}
-        </Suspense>
-        
-        {/* Frame back */}
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[4.2, 2.2, 0.1]} />
-          <meshStandardMaterial color="#111" />
-        </mesh>
+  const frame = getRoadFrame(BILLBOARD_DISTANCE);
+  
+  // Position billboard to the side of the road
+  const offset = frame.right.clone().multiplyScalar(roadWidth * 1.5);
+  const position = frame.point.clone().add(offset).add(frame.normal.clone().multiplyScalar(2));
+  
+  // Face the oncoming road
+  const forwardQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), frame.tangent);
+  const yaw = new THREE.Quaternion().setFromAxisAngle(frame.normal, Math.PI / 4);
+  const rotation = forwardQuat.multiply(yaw);
 
-        {/* Glow */}
-        <mesh position={[0, 0, 0.15]}>
-          <planeGeometry args={[4.2, 2.2]} />
-          <meshBasicMaterial color="#fff" transparent opacity={0.1} />
-        </mesh>
-      </group>
-    </RigidBody>
+  return (
+    <group position={position} quaternion={rotation}>
+      {/* Stand */}
+      <mesh position={[0, -2, 0]}>
+        <boxGeometry args={[0.5, 4, 0.5]} />
+        <meshStandardMaterial color="#333" />
+      </mesh>
+      
+      {/* Screen */}
+      <Suspense fallback={<FallbackScreen />}>
+        {textureUrl ? <BillboardScreen url={textureUrl} /> : <FallbackScreen />}
+      </Suspense>
+      
+      {/* Frame back */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[8.4, 4.4, 0.1]} />
+        <meshStandardMaterial color="#111" />
+      </mesh>
+    </group>
   );
 }
 
-// --- LEVEL COMPONENT ---
-function Level() {
+function Road() {
+  const geometry = useMemo(() => {
+    const points: THREE.Vector3[] = [];
+    const segments = Math.floor(roadLength / 5);
+    for (let i = 0; i <= segments; i++) {
+      const distance = (i / segments) * roadLength;
+      points.push(getRoadFrame(distance).point);
+    }
+    const curve = new THREE.CatmullRomCurve3(points);
+    return new THREE.TubeGeometry(curve, segments, roadWidth, 8, true);
+  }, []);
+
   return (
-    <>
-      <RigidBody type="fixed" colliders="cuboid">
-        {/* Floor */}
-        <mesh position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[50, 50]} />
-          <meshStandardMaterial color="#1a1a2e" roughness={0.8} metalness={0.2} />
-        </mesh>
-        
-        {/* Walls */}
-        <mesh position={[0, 2.5, -10]}>
-          <boxGeometry args={[50, 6, 1]} />
-          <meshStandardMaterial color="#0f0f1a" />
-        </mesh>
-        <mesh position={[0, 2.5, 10]}>
-          <boxGeometry args={[50, 6, 1]} />
-          <meshStandardMaterial color="#0f0f1a" />
-        </mesh>
-        <mesh position={[-10, 2.5, 0]} rotation={[0, Math.PI / 2, 0]}>
-          <boxGeometry args={[50, 6, 1]} />
-          <meshStandardMaterial color="#0f0f1a" />
-        </mesh>
-        <mesh position={[10, 2.5, 0]} rotation={[0, Math.PI / 2, 0]}>
-          <boxGeometry args={[50, 6, 1]} />
-          <meshStandardMaterial color="#0f0f1a" />
-        </mesh>
-      </RigidBody>
-    </>
+    <mesh geometry={geometry}>
+      <meshStandardMaterial color="#222" roughness={0.9} />
+    </mesh>
   );
 }
 
-// --- PLAYER COMPONENT ---
-const SPEED = 5;
-const direction = new THREE.Vector3();
-const frontVector = new THREE.Vector3();
-const sideVector = new THREE.Vector3();
-
-function Player({ setCanBid }: { setCanBid: (val: boolean) => void }) {
-  const ref = useRef<any>(null);
-  const [, get] = useKeyboardControls();
-  const { camera } = useThree();
-
-  useFrame(() => {
-    if (!ref.current) return;
-    const velocity = ref.current.linvel();
-    const { forward, backward, left, right } = get();
-
-    // Update movement
-    frontVector.set(0, 0, Number(backward) - Number(forward));
-    sideVector.set(Number(left) - Number(right), 0, 0);
-    direction.subVectors(frontVector, sideVector).normalize().multiplyScalar(SPEED).applyEuler(camera.rotation);
-
-    ref.current.setLinvel({ x: direction.x, y: velocity.y, z: direction.z });
-
-    // Sync camera to player position
-    const pos = ref.current.translation();
-    camera.position.set(pos.x, pos.y + 1.5, pos.z); // Eye level
-
-    // Check distance to billboard (billboard is at 0, 1.5, -4)
-    const billboardPos = new THREE.Vector3(0, 1.5, -4);
-    const dist = camera.position.distanceTo(billboardPos);
-    setCanBid(dist < 4);
-  });
-
-  return (
-    <RigidBody ref={ref} colliders={false} mass={1} type="dynamic" position={[0, 2, 5]} enabledRotations={[false, false, false]}>
-      <CuboidCollider args={[0.5, 1, 0.5]} />
-    </RigidBody>
-  );
-}
-
-// --- MAIN SCENE ---
-export default function Scene({ currentAdUrl, isBidding, setIsBidding }: { 
+export default function Scene({ 
+  currentAdUrl, 
+  isBidding, 
+  setIsBidding 
+}: { 
   currentAdUrl: string | null, 
   isBidding: boolean,
   setIsBidding: (val: boolean) => void 
@@ -141,13 +95,9 @@ export default function Scene({ currentAdUrl, isBidding, setIsBidding }: {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 'e' && canBid && !isBidding) {
+      if (e.code === 'Space' && canBid && !isBidding) {
         setIsBidding(true);
-        // Unlock pointer natively when opening UI
-        if (document.pointerLockElement) {
-            document.exitPointerLock();
-        }
-      } else if (e.key === 'Escape' && isBidding) {
+      } else if (e.code === 'Escape' && isBidding) {
         setIsBidding(false);
       }
     };
@@ -157,42 +107,29 @@ export default function Scene({ currentAdUrl, isBidding, setIsBidding }: {
 
   return (
     <div className="absolute inset-0 z-0">
-      <KeyboardControls
-        map={[
-          { name: "forward", keys: ["ArrowUp", "w", "W"] },
-          { name: "backward", keys: ["ArrowDown", "s", "S"] },
-          { name: "left", keys: ["ArrowLeft", "a", "A"] },
-          { name: "right", keys: ["ArrowRight", "d", "D"] },
-          { name: "jump", keys: ["Space"] },
-        ]}
-      >
-        <Canvas>
-          <Suspense fallback={null}>
-            <Physics gravity={[0, -30, 0]}>
-              <Environment preset="night" background blur={0.5} />
-              <ambientLight intensity={0.5} />
-              <directionalLight position={[10, 10, 5]} intensity={1} />
-              
-              <Level />
-              <Billboard textureUrl={currentAdUrl} />
-              <Player setCanBid={setCanBid} />
-            </Physics>
+      <Canvas camera={{ position: [0, 5, 10], fov: 60 }}>
+        <Suspense fallback={null}>
+          <Environment preset="night" background blur={0.5} />
+          <ambientLight intensity={0.5} />
+          <directionalLight position={[10, 20, 10]} intensity={1.5} />
+          
+          <Road />
+          <Billboard textureUrl={currentAdUrl} />
+          
+          <Car 
+            playing={!isBidding} 
+            billboardDistance={BILLBOARD_DISTANCE}
+            onNearBillboard={setCanBid}
+          />
+        </Suspense>
+      </Canvas>
 
-            {/* Only lock pointer when NOT interacting with UI */}
-            {!isBidding && <PointerLockControls />}
-          </Suspense>
-        </Canvas>
-      </KeyboardControls>
-
-      {/* Crosshair / Interaction Prompt */}
-      {!isBidding && (
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center z-10">
-          <div className="w-1.5 h-1.5 bg-white rounded-full opacity-50 mb-4" />
-          {canBid && (
-            <div className="bg-black/50 text-white px-4 py-2 rounded-lg backdrop-blur-sm border border-white/20 animate-pulse">
-              Press <kbd className="bg-zinc-800 px-2 py-1 rounded mx-1">E</kbd> to Bid on Billboard
-            </div>
-          )}
+      {/* Interaction Prompt */}
+      {!isBidding && canBid && (
+        <div className="pointer-events-none absolute bottom-10 w-full flex justify-center z-10">
+          <div className="bg-black/80 text-white px-6 py-3 rounded-full backdrop-blur-md border border-white/20 animate-pulse text-lg font-bold shadow-2xl">
+            Press <kbd className="bg-blue-600 px-3 py-1 rounded mx-1 text-white">SPACE</kbd> to Bid on Billboard
+          </div>
         </div>
       )}
     </div>
