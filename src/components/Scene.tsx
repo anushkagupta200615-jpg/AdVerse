@@ -1,14 +1,14 @@
 "use client";
 
 import { Canvas } from "@react-three/fiber";
-import { Sky, useTexture } from "@react-three/drei";
-import { Suspense, useMemo, useState, useEffect } from "react";
+import { Sky } from "@react-three/drei";
+import { Suspense, useState, useEffect } from "react";
 import * as THREE from "three";
 import Car, { DrivingTelemetry } from "./Car";
-import { getRoadFrame, roadLength, roadWidth } from "../utils/roadCurve";
 import { CarId } from "../data/cars";
+import RoadAndEnvironment, { SceneId } from "./RoadAndEnvironment";
 
-export type SceneId = 'meadow' | 'alpine' | 'snow' | 'autumn' | 'coast' | 'desert' | 'dusk'
+export type { SceneId };
 
 const atmosphere: Record<SceneId, {
   background: string
@@ -29,123 +29,24 @@ const atmosphere: Record<SceneId, {
   dusk: { background: '#d2a184', fog: '#d2a184', sun: [-70, 18, -90], turbidity: 1.8, rayleigh: 2.5, hemiSky: '#ffd5b3', hemiGround: '#46533c', ambient: 0.72 },
 }
 
-const BILLBOARD_DISTANCE = 300;
-
-function BillboardScreen({ url }: { url: string }) {
-  const texture = useTexture(url);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return (
-    <mesh position={[0, 0, 0.1]}>
-      <planeGeometry args={[8, 4]} />
-      <meshBasicMaterial map={texture} />
-    </mesh>
-  );
-}
-
-function FallbackScreen() {
-  return (
-    <mesh position={[0, 0, 0.1]}>
-      <planeGeometry args={[8, 4]} />
-      <meshBasicMaterial color="#333" />
-    </mesh>
-  );
-}
-
-function Billboard({ textureUrl }: { textureUrl: string | null }) {
-  const frame = getRoadFrame(BILLBOARD_DISTANCE);
-  
-  // Position billboard to the side of the road
-  const offset = frame.right.clone().multiplyScalar(roadWidth * 1.5);
-  const position = frame.point.clone().add(offset).add(frame.normal.clone().multiplyScalar(2));
-  
-  // Face the oncoming road
-  const forwardQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), frame.tangent);
-  const yaw = new THREE.Quaternion().setFromAxisAngle(frame.normal, Math.PI / 4);
-  const rotation = forwardQuat.multiply(yaw);
-
-  return (
-    <group position={position} quaternion={rotation}>
-      {/* Stand */}
-      <mesh position={[0, -2, 0]}>
-        <boxGeometry args={[0.5, 4, 0.5]} />
-        <meshStandardMaterial color="#333" />
-      </mesh>
-      
-      {/* Screen */}
-      <Suspense fallback={<FallbackScreen />}>
-        {textureUrl ? <BillboardScreen url={textureUrl} /> : <FallbackScreen />}
-      </Suspense>
-      
-      {/* Frame back */}
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[8.4, 4.4, 0.1]} />
-        <meshStandardMaterial color="#111" />
-      </mesh>
-    </group>
-  );
-}
-
-function createRoadGeometry(width: number, segments: number) {
-  const geometry = new THREE.BufferGeometry()
-  const vertices: number[] = []
-  const uvs: number[] = []
-  const indices: number[] = []
-
-  for (let i = 0; i <= segments; i++) {
-    const distance = (i / segments) * roadLength
-    const frame = getRoadFrame(distance)
-    const left = frame.point.clone().add(frame.right.clone().multiplyScalar(-width / 2)).add(frame.normal.clone().multiplyScalar(0.09))
-    const right = frame.point.clone().add(frame.right.clone().multiplyScalar(width / 2)).add(frame.normal.clone().multiplyScalar(0.09))
-
-    vertices.push(left.x, left.y, left.z, right.x, right.y, right.z)
-    uvs.push(0, distance / 32, 1, distance / 32)
-  }
-
-  for (let i = 0; i < segments; i++) {
-    const a = i * 2
-    indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2)
-  }
-
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
-  geometry.setIndex(indices)
-  geometry.computeVertexNormals()
-  return geometry
-}
-
-function Road() {
-  const geometry = useMemo(() => createRoadGeometry(roadWidth, Math.floor(roadLength / 5)), []);
-
-  return (
-    <mesh geometry={geometry}>
-      <meshStandardMaterial color="#3a3a40" roughness={0.9} side={THREE.DoubleSide} />
-    </mesh>
-  );
-}
-
-function Ground({ color }: { color: string }) {
-  return (
-    <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-      <planeGeometry args={[10000, 10000]} />
-      <meshBasicMaterial color={color} />
-    </mesh>
-  );
-}
-
 export default function Scene({ 
   currentAdUrl, 
   isBidding, 
   setIsBidding,
   onTelemetry,
   activeScene,
-  activeCar
+  activeCar,
+  lastPrompt,
+  lastBidAmount
 }: { 
   currentAdUrl: string | null, 
   isBidding: boolean,
   setIsBidding: (val: boolean) => void,
   onTelemetry: (telemetry: DrivingTelemetry) => void,
   activeScene: SceneId,
-  activeCar: CarId
+  activeCar: CarId,
+  lastPrompt?: string,
+  lastBidAmount?: string
 }) {
   const [canBid, setCanBid] = useState(false);
   const mood = atmosphere[activeScene];
@@ -194,14 +95,16 @@ export default function Scene({
           intensity={2.15}
         />
         
-        <Ground color={mood.hemiGround} />
-        <Road />
-        <Billboard textureUrl={currentAdUrl} />
+        <RoadAndEnvironment 
+          textureUrl={currentAdUrl} 
+          lastPrompt={lastPrompt}
+          lastBidAmount={lastBidAmount}
+          scene={activeScene} 
+        />
         
         <Suspense fallback={null}>
           <Car 
             playing={!isBidding} 
-            billboardDistance={BILLBOARD_DISTANCE}
             onNearBillboard={setCanBid}
             onTelemetry={onTelemetry}
             carId={activeCar}

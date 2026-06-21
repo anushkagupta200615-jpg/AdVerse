@@ -59,6 +59,8 @@ export default function Home() {
         onTelemetry={setTelemetry}
         activeScene={activeScene}
         activeCar={activeCar}
+        lastPrompt={lastPrompt}
+        lastBidAmount={lastBidAmount}
       />
 
       {/* Arcade UI Overlay */}

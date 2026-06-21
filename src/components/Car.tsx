@@ -16,7 +16,6 @@ interface CarProps {
   playing: boolean
   onTelemetry?: (telemetry: DrivingTelemetry) => void
   onNearBillboard?: (isNear: boolean) => void
-  billboardDistance: number
   carId: CarId
 }
 
@@ -31,7 +30,7 @@ const keyMap: Record<string, keyof typeof driveInput> = {
   ArrowRight: 'steerRight',
 }
 
-export default function Car({ playing, onTelemetry, onNearBillboard, billboardDistance, carId }: CarProps) {
+export default function Car({ playing, onTelemetry, onNearBillboard, carId }: CarProps) {
   const option = getCarOption(carId)
   
   const group = useRef<THREE.Group>(null)
@@ -110,8 +109,16 @@ export default function Car({ playing, onTelemetry, onNearBillboard, billboardDi
     group.current.quaternion.slerp(targetQuat, 0.26)
 
     if (onNearBillboard) {
-      const distToBoard = Math.abs(distance.current - billboardDistance)
-      onNearBillboard(distToBoard < 25 && distToBoard > -10)
+      let isNear = false
+      for (let i = 0; i < 18; i++) {
+        const bDist = 245 + i * 285
+        const distToCurrent = distance.current - bDist
+        if (distToCurrent > -25 && distToCurrent < 10) {
+          isNear = true
+          break
+        }
+      }
+      onNearBillboard(isNear)
     }
 
     const chaseDistance = THREE.MathUtils.mapLinear(speed.current, 10, option.maxSpeed, 8.4, 20)
