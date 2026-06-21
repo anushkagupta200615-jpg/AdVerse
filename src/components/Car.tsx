@@ -6,7 +6,6 @@ import * as THREE from 'three'
 import { getRoadFrame, roadWidth, wrapDistance } from '../utils/roadCurve'
 import { CarId, getCarOption } from '../data/cars'
 import { driveInput, setDriveInput } from '../utils/input'
-import { CarId, getCarOption } from '../data/cars'
 
 export interface DrivingTelemetry {
   speed: number
