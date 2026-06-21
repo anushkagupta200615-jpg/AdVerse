@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Scene, { SceneId } from "@/components/Scene";
 import HUD from "@/components/HUD";
 import { DrivingTelemetry } from "@/components/Car";
@@ -21,6 +21,19 @@ export default function Home() {
   // Stats for HUD display
   const [lastPrompt, setLastPrompt] = useState("");
   const [lastBidAmount, setLastBidAmount] = useState("");
+
+  const [hasStarted, setHasStarted] = useState(false);
+
+  useEffect(() => {
+    if (hasStarted) return;
+    const start = () => setHasStarted(true);
+    window.addEventListener('keydown', start);
+    window.addEventListener('pointerdown', start);
+    return () => {
+      window.removeEventListener('keydown', start);
+      window.removeEventListener('pointerdown', start);
+    };
+  }, [hasStarted]);
 
   const handleBidSubmit = async (prompt: string, bidAmount: string) => {
     setIsSubmitting(true);
@@ -54,7 +67,7 @@ export default function Home() {
       {/* 3D Game Environment in the background */}
       <Scene 
         currentAdUrl={adUrl} 
-        isBidding={isBidding} 
+        isBidding={isBidding || !hasStarted} 
         setIsBidding={setIsBidding} 
         onTelemetry={setTelemetry}
         activeScene={activeScene}
@@ -91,10 +104,25 @@ export default function Home() {
       )}
 
       {/* Interaction Prompt when near Billboard */}
-      {!isBidding && (
+      {!isBidding && hasStarted && (
         <div className="pointer-events-none absolute bottom-32 w-full flex justify-center z-10" id="interaction-prompt" style={{ opacity: 0, transition: 'opacity 0.2s' }}>
           <div className="bg-black/80 text-white px-6 py-3 rounded-full backdrop-blur-md border border-white/20 animate-pulse text-lg font-bold shadow-2xl" style={{ fontFamily: 'JetBrains Mono, monospace' }}>
             Press <kbd className="bg-yellow-600 px-3 py-1 rounded mx-1 text-black">SPACE</kbd> to Bid
+          </div>
+        </div>
+      )}
+
+      {/* Start Screen Overlay */}
+      {!hasStarted && (
+        <div 
+          className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md text-white" 
+          style={{ pointerEvents: 'auto', cursor: 'pointer' }} 
+          onClick={() => setHasStarted(true)}
+        >
+          <h1 className="text-8xl font-black mb-2 tracking-tighter text-[#efe0bd]">arcAd(e)</h1>
+          <h2 className="text-3xl font-bold mb-16 text-[#dca24f] tracking-widest uppercase">Drive</h2>
+          <div className="animate-pulse text-xl text-white/70 font-mono tracking-wider">
+            Press any key to start
           </div>
         </div>
       )}
